@@ -18,8 +18,8 @@ import serial
 from serial.tools import list_ports
 
 SAMPLE_RATE_HZ = 1000  # must match SAMPLE_PERIOD_US in src/main.cpp
-Y_MIN_MV = 2000
-Y_MAX_MV = 3200
+Y_MIN_MV = 1000
+Y_MAX_MV = 5000
 MDF_WINDOW_S = 60  # longer than the raw graph, since fatigue is a slow trend
 MDF_MAX_HZ = 450  # must match EMG_MAX_HZ in src/main.cpp
 ESPRESSIF_VID = 0x303A
