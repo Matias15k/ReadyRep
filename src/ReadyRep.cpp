@@ -1,5 +1,6 @@
 // EMG on A0, record button on D3. (Thermistor on A1 is commented out for now.)
-// Streams every EMG sample as "emg_mv:<value>", for tools/plot_mdf.py.
+// Prints median frequency results over serial, for tools/plot_mdf.py.
+// See ReadyRepBLE.cpp for the version with the thermistor and Bluetooth.
 // Build with: pio run -e readyrep
 #include <Arduino.h>
 #include <esp_adc_cal.h>
@@ -98,7 +99,7 @@ void setup() {
   pinMode(BUTTON_PIN, INPUT_PULLDOWN);
   analogReadResolution(12);
   analogSetPinAttenuation(EMG_PIN, ADC_11db);  // full 0-3.1 V input range
-  esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adcCalibration);
+  esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_12, ADC_WIDTH_BIT_12, 1100, &adcCalibration);
   // analogSetPinAttenuation(THERMISTOR_PIN, ADC_11db);
   delay(STARTUP_DELAY_MS);
 

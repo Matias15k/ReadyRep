@@ -28,6 +28,7 @@ START_LINE = "Recording median frequency..."
 WINDOW_LINE = re.compile(r"^Median frequency (\d+): (\d+(?:\.\d+)?) Hz")
 AVERAGE_LINE = re.compile(r"^Average median frequency: (\d+(?:\.\d+)?) Hz \((\d+) windows\)")
 TOO_SHORT_LINE = "Button released too soon"
+TEMP_LINE = "Temperature: "  # only from ReadyRepBLE.cpp
 
 
 class LineReader:
@@ -67,6 +68,8 @@ class HoldPlot:
                                      ha="right", va="bottom", color=COLOR_TEXT_MUTED)
         self.status = ax.text(1, 1.02, "Hold the button to record", transform=ax.transAxes,
                               ha="right", color=COLOR_TEXT_MUTED)
+        self.temperature = ax.text(0.01, 0.97, "", transform=ax.transAxes, va="top",
+                                   color=COLOR_TEXT_MUTED)
         self.fig.tight_layout()
 
     def start_hold(self):
@@ -102,6 +105,8 @@ class HoldPlot:
             print(text)
             if text.startswith(START_LINE):
                 self.start_hold()
+            elif text.startswith(TEMP_LINE):
+                self.temperature.set_text(text)
             elif text.startswith(TOO_SHORT_LINE):
                 self.status.set_text(f"Hold {self.hold}: too short, hold at least 1 s")
             elif match := WINDOW_LINE.match(text):

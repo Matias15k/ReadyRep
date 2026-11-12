@@ -167,7 +167,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--port", help="serial port (default: auto-detect the ESP)")
     parser.add_argument("--window", type=int, default=3,
-                        help="seconds of data to show (default: 10)")
+                        help="seconds of data to show (default: 3)")
     parser.add_argument("--save", metavar="FILE", help="also record samples to a CSV")
     args = parser.parse_args()
 

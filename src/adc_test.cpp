@@ -1,4 +1,4 @@
-// Records a starting temperature on A0, then reports once it has risen 1.5 C.
+// Records a starting temperature on A1, then reports once it has risen 1.5 C.
 // Build with: pio run -e adc_test
 #include <Arduino.h>
 
@@ -27,13 +27,17 @@ void setup() {
   delay(STARTUP_DELAY_MS);
 
   baselineC = readCelsius();
+  if (isnan(baselineC)) {
+    Serial.println("No thermistor found on A1. Check the wiring, then reset the board.");
+    return;
+  }
   Serial.printf("Starting temperature: %.1f F. Waiting for a %.1f C rise...\n",
                 toFahrenheit(baselineC), RISE_C);
 }
 
 void loop() {
   static bool reached = false;
-  if (reached) {
+  if (reached || isnan(baselineC)) {
     return;
   }
 
