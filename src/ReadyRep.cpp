@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <esp_adc_cal.h>
 
+#include "adc_range.h"
 #include "median_frequency.h"
 // #include "thermistor.h"
 
@@ -98,9 +99,9 @@ void setup() {
   Serial.begin(115200);
   pinMode(BUTTON_PIN, INPUT_PULLDOWN);
   analogReadResolution(12);
-  analogSetPinAttenuation(EMG_PIN, ADC_11db);  // full 0-3.1 V input range
-  esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_12, ADC_WIDTH_BIT_12, 1100, &adcCalibration);
-  // analogSetPinAttenuation(THERMISTOR_PIN, ADC_11db);
+  analogSetPinAttenuation(EMG_PIN, (adc_attenuation_t)ADC_FULL_RANGE);  // about 0-2.5 V on the C3
+  esp_adc_cal_characterize(ADC_UNIT_1, ADC_FULL_RANGE, ADC_WIDTH_BIT_12, 1100, &adcCalibration);
+  // analogSetPinAttenuation(THERMISTOR_PIN, (adc_attenuation_t)ADC_FULL_RANGE);
   delay(STARTUP_DELAY_MS);
 
   // baselineC = readCelsius();

@@ -9,6 +9,7 @@
 #include <BLEServer.h>
 #include <esp_adc_cal.h>
 
+#include "adc_range.h"
 #include "median_frequency.h"
 #include "thermistor.h"
 
@@ -16,11 +17,13 @@ const uint8_t EMG_PIN = A0;  // MyoWare RAW output
 const uint8_t THERMISTOR_PIN = A1;
 const uint8_t BUTTON_PIN = D3;  // 3V3 -> button -> D3, reads high while held
 
-const unsigned long SAMPLE_PERIOD_US = 1000;  // 1 kHz
-const float SAMPLE_RATE_HZ = 1000000.0f / SAMPLE_PERIOD_US;
-// If the loop falls this far behind, the samples since would be bunched up,
+// One sample per FreeRTOS tick (1 ms), so 1 kHz.
+const TickType_t SAMPLE_PERIOD_TICKS = pdMS_TO_TICKS(1);
+const float SAMPLE_RATE_HZ = 1000;
+static_assert(CONFIG_FREERTOS_HZ == 1000, "sampling assumes a 1 ms FreeRTOS tick");
+// If sampling falls this far behind, the samples since would be bunched up,
 // so the partial window is thrown away and timing restarts from now.
-const unsigned long MAX_LATE_US = 3 * SAMPLE_PERIOD_US;
+const TickType_t MAX_LATE_TICKS = 3;
 
 const size_t FFT_SIZE = 1024;  // about 1 s of data, must be a power of two
 const float EMG_MIN_HZ = 20;  // below this is mostly motion artifact
@@ -136,7 +139,8 @@ void reportTemperature(float mv) {
   report(tempCharacteristic, serialLine, bleText);
 }
 
-// Runs on the other core so the FFT, serial and BLE calls can't delay sampling in loop().
+// Lower priority than sampleTask, so on the single-core C3 sampling interrupts the FFT,
+// serial and BLE work instead of waiting for it.
 void analysisTask(void *) {
   static AnalysisMessage message;
   static float im[FFT_SIZE];
@@ -226,6 +230,54 @@ void sampleTemperature() {
   }
 }
 
+// A task instead of loop(), because on the single-core C3 Arduino pauses loop() for 5 ms
+// every 2 s, which would throw away a window each time. It sleeps between samples so
+// analysisTask can run.
+void sampleTask(void *) {
+  static AnalysisMessage window;
+  size_t filled = 0;
+  unsigned long windowStartUs = 0;
+  bool recording = false;
+
+  TickType_t lastWake = xTaskGetTickCount();
+  for (;;) {
+    vTaskDelayUntil(&lastWake, SAMPLE_PERIOD_TICKS);
+    TickType_t now = xTaskGetTickCount();
+    if (now - lastWake > MAX_LATE_TICKS) {
+      lastWake = now;
+      filled = 0;
+    }
+
+    // Sampled first, so the button and thermistor work can't shift its timing.
+    unsigned long sampledAt = micros();
+    uint32_t mv = readMilliVolts(EMG_PIN);
+
+    bool held = buttonHeld();
+    if (held != recording) {
+      // Queued in order after any windows still being analyzed, so they all count.
+      recording = held;
+      filled = 0;
+      window.kind = held ? AnalysisMessage::START : AnalysisMessage::END;
+      xQueueSend(analysisQueue, &window, portMAX_DELAY);
+    }
+
+    if (recording) {
+      if (filled == 0) {
+        windowStartUs = sampledAt;
+      }
+      window.samples[filled++] = mv;
+      if (filled == FFT_SIZE) {
+        window.kind = AnalysisMessage::WINDOW;
+        window.sampleRateHz = (FFT_SIZE - 1) * 1000000.0f / (sampledAt - windowStartUs);
+        xQueueSend(analysisQueue, &window, 0);  // skips this window if the queue is full
+        filled = 0;
+      }
+    }
+
+    sampleTemperature();
+  }
+}
+
 void setup() {
   Serial.begin(115200);
 #if ARDUINO_USB_MODE && ARDUINO_USB_CDC_ON_BOOT
@@ -234,9 +286,9 @@ void setup() {
 #endif
   pinMode(BUTTON_PIN, INPUT_PULLDOWN);
   analogReadResolution(12);
-  analogSetPinAttenuation(EMG_PIN, ADC_11db);  // full 0-3.1 V input range
-  analogSetPinAttenuation(THERMISTOR_PIN, ADC_11db);
-  esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_12, ADC_WIDTH_BIT_12, 1100, &adcCalibration);
+  analogSetPinAttenuation(EMG_PIN, (adc_attenuation_t)ADC_FULL_RANGE);
+  analogSetPinAttenuation(THERMISTOR_PIN, (adc_attenuation_t)ADC_FULL_RANGE);
+  esp_adc_cal_characterize(ADC_UNIT_1, ADC_FULL_RANGE, ADC_WIDTH_BIT_12, 1100, &adcCalibration);
   setupBle();
   delay(STARTUP_DELAY_MS);
 
@@ -247,51 +299,9 @@ void setup() {
   temperatureQueue = xQueueCreate(4, sizeof(float));
   // Larger stack than ReadyRep.cpp, for float formatting and BLE calls.
   xTaskCreatePinnedToCore(analysisTask, "analysis", 8192, NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(sampleTask, "sample", 4096, NULL, 5, NULL, 0);
 }
 
 void loop() {
-  static unsigned long lastSample = micros();
-  static AnalysisMessage window;
-  static size_t filled = 0;
-  static unsigned long windowStartUs = 0;
-  static bool recording = false;
-
-  unsigned long now = micros();
-  if (now - lastSample < SAMPLE_PERIOD_US) {
-    return;
-  }
-  if (now - lastSample > MAX_LATE_US) {
-    lastSample = now;
-    filled = 0;
-  } else {
-    lastSample += SAMPLE_PERIOD_US;
-  }
-
-  // Sampled first, so the button and thermistor work can't shift its timing.
-  unsigned long sampledAt = micros();
-  uint32_t mv = readMilliVolts(EMG_PIN);
-
-  bool held = buttonHeld();
-  if (held != recording) {
-    // Queued in order after any windows still being analyzed, so they all count.
-    recording = held;
-    filled = 0;
-    window.kind = held ? AnalysisMessage::START : AnalysisMessage::END;
-    xQueueSend(analysisQueue, &window, portMAX_DELAY);
-  }
-
-  if (recording) {
-    if (filled == 0) {
-      windowStartUs = sampledAt;
-    }
-    window.samples[filled++] = mv;
-    if (filled == FFT_SIZE) {
-      window.kind = AnalysisMessage::WINDOW;
-      window.sampleRateHz = (FFT_SIZE - 1) * 1000000.0f / (sampledAt - windowStartUs);
-      xQueueSend(analysisQueue, &window, 0);  // skips this window if the queue is full
-      filled = 0;
-    }
-  }
-
-  sampleTemperature();
+  vTaskDelay(portMAX_DELAY);  // everything happens in sampleTask and analysisTask
 }
