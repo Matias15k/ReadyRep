@@ -23,6 +23,7 @@ from plot_emg import (COLOR_LINE, COLOR_SURFACE, COLOR_TEXT_MUTED, find_port, op
 from plot_raw import Y_MAX_MV, Y_MIN_MV, new_csv_path
 
 SAMPLE_RATE_HZ = 1000  # must match SAMPLE_PERIOD_TICKS in src/collect.cpp
+MAX_READS_PER_FRAME = 200  # stops the plot freezing if data somehow arrives faster than it's read
 SAMPLE_LINE = re.compile(r"^emg_mv:(\d+),therm_mv:(\d+),temp_f:(-?\d+(?:\.\d+)?)$")
 
 
@@ -34,7 +35,13 @@ class CollectReader:
         self.pending = b""
 
     def read(self):
-        self.pending += self.ser.read(self.ser.in_waiting or 1)
+        # Keep reading until the port is empty. macOS only buffers about 1 KB, so one read per
+        # frame can't keep up with 1000 lines a second and the board gets held back.
+        for _ in range(MAX_READS_PER_FRAME):
+            chunk = self.ser.read(self.ser.in_waiting or 1)
+            if not chunk:
+                break
+            self.pending += chunk
         *lines, self.pending = self.pending.split(b"\n")
         readings = []
         for line in lines:
