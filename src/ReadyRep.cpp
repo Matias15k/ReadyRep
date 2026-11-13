@@ -1,5 +1,5 @@
 // EMG on A0, record button on D3. (Thermistor on A1 is commented out for now.)
-// Streams every EMG sample as "emg_mv:<value>", for tools/plot_mdf.py.
+// Prints each window's median frequency and the average per hold, for tools/plot_mdf.py.
 // Build with: pio run -e readyrep
 #include <Arduino.h>
 #include <esp_adc_cal.h>
@@ -11,8 +11,10 @@ const uint8_t EMG_PIN = A0;  // MyoWare RAW output
 // const uint8_t THERMISTOR_PIN = A1;
 const uint8_t BUTTON_PIN = D3;  // 3V3 -> button -> D3, reads high while held
 
-const unsigned long SAMPLE_PERIOD_US = 1000;  // 1 kHz
-const float SAMPLE_RATE_HZ = 1000000.0f / SAMPLE_PERIOD_US;
+// One sample per FreeRTOS tick (1 ms), so 1 kHz.
+const TickType_t SAMPLE_PERIOD_TICKS = pdMS_TO_TICKS(1);
+const float SAMPLE_RATE_HZ = 1000;
+static_assert(CONFIG_FREERTOS_HZ == 1000, "sampling assumes a 1 ms FreeRTOS tick");
 
 const size_t FFT_SIZE = 1024;  // about 1 s of data, must be a power of two
 const float EMG_MIN_HZ = 20;  // below this is mostly motion artifact
@@ -37,7 +39,8 @@ static QueueHandle_t analysisQueue;
 static esp_adc_cal_characteristics_t adcCalibration;
 // static float baselineC;
 
-// Runs on the other core so the FFT can't delay sampling in loop().
+// Lower priority than sampleTask, so on the single-core C3 sampling interrupts the FFT
+// instead of waiting for it.
 void analysisTask(void *) {
   static AnalysisMessage message;
   static float im[FFT_SIZE];
@@ -93,11 +96,74 @@ bool buttonHeld() {
 //   return thermistorCelsius((float)total / BASELINE_SAMPLES);
 // }
 
+// A task instead of loop(), because on the single-core C3 Arduino pauses loop() for 5 ms
+// every 2 s, which would skip samples. It sleeps between samples so analysisTask can run.
+void sampleTask(void *) {
+  static AnalysisMessage window;
+  size_t filled = 0;
+  unsigned long windowStartUs = 0;
+  bool recording = false;
+  // int tick = 0;
+  // uint32_t tempTotal = 0;
+  // int tempCount = 0;
+  // bool riseReached = false;
+
+  TickType_t lastWake = xTaskGetTickCount();
+  for (;;) {
+    vTaskDelayUntil(&lastWake, SAMPLE_PERIOD_TICKS);
+    bool held = buttonHeld();
+    if (held && !recording) {
+      recording = true;
+      filled = 0;
+      Serial.println("Recording median frequency...");
+    } else if (!held && recording) {
+      // Queued after any windows still being analyzed, so they all count.
+      recording = false;
+      window.endOfRecording = true;
+      xQueueSend(analysisQueue, &window, portMAX_DELAY);
+    }
+
+    unsigned long sampledAt = micros();
+    uint32_t mv = esp_adc_cal_raw_to_voltage(analogRead(EMG_PIN), &adcCalibration);
+    // Serial.printf("emg_mv:%lu\n", (unsigned long)mv);  // streamed for tools/plot_mdf.py
+
+    if (recording) {
+      if (filled == 0) {
+        windowStartUs = sampledAt;
+      }
+      window.samples[filled++] = mv;
+      if (filled == FFT_SIZE) {
+        window.endOfRecording = false;
+        window.sampleRateHz = (FFT_SIZE - 1) * 1000000.0f / (sampledAt - windowStartUs);
+        xQueueSend(analysisQueue, &window, 0);  // skips this window if the queue is full
+        filled = 0;
+      }
+    }
+
+    // // Spread the temperature reading across ticks so it never delays EMG sampling.
+    // if (++tick < TEMP_TICK_INTERVAL) {
+    //   continue;
+    // }
+    // tick = 0;
+    // tempTotal += analogReadMilliVolts(THERMISTOR_PIN);
+    // if (++tempCount == TEMP_SAMPLES) {
+    //   float celsius = thermistorCelsius((float)tempTotal / TEMP_SAMPLES);
+    //   tempTotal = 0;
+    //   tempCount = 0;
+    //   if (!riseReached && celsius - baselineC >= RISE_C) {
+    //     riseReached = true;
+    //     Serial.printf("Rose %.1f C: now %.1f F (started at %.1f F)\n", celsius - baselineC,
+    //                   toFahrenheit(celsius), toFahrenheit(baselineC));
+    //   }
+    // }
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(BUTTON_PIN, INPUT_PULLDOWN);
   analogReadResolution(12);
-  analogSetPinAttenuation(EMG_PIN, ADC_11db);  // full 0-3.1 V input range
+  analogSetPinAttenuation(EMG_PIN, ADC_11db);  // about 0-2.5 V on the C3
   esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adcCalibration);
   // analogSetPinAttenuation(THERMISTOR_PIN, ADC_11db);
   delay(STARTUP_DELAY_MS);
@@ -109,68 +175,9 @@ void setup() {
 
   analysisQueue = xQueueCreate(3, sizeof(AnalysisMessage));
   xTaskCreatePinnedToCore(analysisTask, "analysis", 4096, NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(sampleTask, "sample", 4096, NULL, 5, NULL, ARDUINO_RUNNING_CORE);
 }
 
 void loop() {
-  static unsigned long lastSample = micros();
-  static AnalysisMessage window;
-  static size_t filled = 0;
-  static unsigned long windowStartUs = 0;
-  static bool recording = false;
-  // static int tick = 0;
-  // static uint32_t tempTotal = 0;
-  // static int tempCount = 0;
-  // static bool riseReached = false;
-
-  unsigned long now = micros();
-  if (now - lastSample < SAMPLE_PERIOD_US) {
-    return;
-  }
-  lastSample += SAMPLE_PERIOD_US;
-
-  bool held = buttonHeld();
-  if (held && !recording) {
-    recording = true;
-    filled = 0;
-    Serial.println("Recording median frequency...");
-  } else if (!held && recording) {
-    // Queued after any windows still being analyzed, so they all count.
-    recording = false;
-    window.endOfRecording = true;
-    xQueueSend(analysisQueue, &window, portMAX_DELAY);
-  }
-
-  unsigned long sampledAt = micros();
-  uint32_t mv = esp_adc_cal_raw_to_voltage(analogRead(EMG_PIN), &adcCalibration);
-  // Serial.printf("emg_mv:%lu\n", (unsigned long)mv);  // streamed for tools/plot_mdf.py
-
-  if (recording) {
-    if (filled == 0) {
-      windowStartUs = sampledAt;
-    }
-    window.samples[filled++] = mv;
-    if (filled == FFT_SIZE) {
-      window.endOfRecording = false;
-      window.sampleRateHz = (FFT_SIZE - 1) * 1000000.0f / (sampledAt - windowStartUs);
-      xQueueSend(analysisQueue, &window, 0);  // skips this window if the queue is full
-      filled = 0;
-    }
-  }
-
-  // // Spread the temperature reading across ticks so it never delays EMG sampling.
-  // if (++tick < TEMP_TICK_INTERVAL) {
-  //   return;
-  // }
-  // tick = 0;
-  // tempTotal += analogReadMilliVolts(THERMISTOR_PIN);
-  // if (++tempCount == TEMP_SAMPLES) {
-  //   float celsius = thermistorCelsius((float)tempTotal / TEMP_SAMPLES);
-  //   tempTotal = 0;
-  //   tempCount = 0;
-  //   if (!riseReached && celsius - baselineC >= RISE_C) {
-  //     riseReached = true;
-  //     Serial.printf("Rose %.1f C: now %.1f F (started at %.1f F)\n", celsius - baselineC,
-  //                   toFahrenheit(celsius), toFahrenheit(baselineC));
-  //   }
-  // }
+  vTaskDelay(portMAX_DELAY);  // everything happens in sampleTask and analysisTask
 }
