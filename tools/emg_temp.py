@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """Live-plot raw EMG from src/collect.cpp and record EMG and temperature to a CSV in data/.
 
-Each run writes a new file named after the time it started, such as
+Each run writes a new file named CSV_TITLE plus the time it started, such as
 data/emg_temp_2026-11-13_15-30-05.csv, so old recordings are never overwritten.
 
 Usage:
     python3 tools/emg_temp.py
+    python3 tools/emg_temp.py --title "bicep curls set 1"
     python3 tools/emg_temp.py --port /dev/cu.usbmodem1101 --window 5
 """
 import argparse
 import collections
 import csv
 import re
+import string
 import sys
 
 import matplotlib.pyplot as plt
@@ -22,9 +24,19 @@ from plot_emg import (COLOR_LINE, COLOR_SURFACE, COLOR_TEXT_MUTED, find_port, op
                       style_axes)
 from plot_raw import Y_MAX_MV, Y_MIN_MV, new_csv_path
 
+# Start of the CSV file name; change it before each recording, or pass --title.
+CSV_TITLE = "emg_temp"
+
 SAMPLE_RATE_HZ = 1000  # must match SAMPLE_PERIOD_TICKS in src/collect.cpp
 MAX_READS_PER_FRAME = 200  # stops the plot freezing if data somehow arrives faster than it's read
 SAMPLE_LINE = re.compile(r"^emg_mv:(\d+),therm_mv:(\d+),temp_f:(-?\d+(?:\.\d+)?)$")
+
+
+def file_safe(title):
+    """Turns a title like "Bicep curls, set 1" into "Bicep_curls_set_1"."""
+    allowed = string.ascii_letters + string.digits + "-_"
+    words = "".join(c if c in allowed else " " for c in title).split()
+    return "_".join(words) or "emg_temp"
 
 
 class CollectReader:
@@ -97,6 +109,8 @@ def main():
     parser.add_argument("--port", help="serial port (default: auto-detect the ESP)")
     parser.add_argument("--window", type=int, default=3,
                         help="seconds of data to show (default: 3)")
+    parser.add_argument("--title", default=CSV_TITLE,
+                        help=f"start of the CSV file name (default: {CSV_TITLE})")
     args = parser.parse_args()
 
     port = args.port or find_port()
@@ -105,7 +119,7 @@ def main():
     except serial.SerialException as err:
         sys.exit(f"Couldn't open {port}. Close any other serial monitor first. ({err})")
 
-    path = new_csv_path("emg_temp")
+    path = new_csv_path(file_safe(args.title))
     csv_file = open(path, "x", newline="")  # "x" refuses to replace an existing file
     writer = csv.writer(csv_file)
     writer.writerow(["time_s", "emg_mv", "therm_mv", "temp_f"])
