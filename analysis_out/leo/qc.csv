@@ -1,0 +1,3 @@
+file,participant,set,n_reps,n_valid_reps,temp_valid,flags
+leo_rep_1_2026-11-17_20-15-04.csv,leo,rep_1,4,4,True,spike_samples(8)
+leo_rep_2_2026-11-17_20-24-04.csv,leo,rep_2,4,4,True,spike_samples(3)
