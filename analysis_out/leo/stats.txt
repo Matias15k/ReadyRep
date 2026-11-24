@@ -1,0 +1,134 @@
+ReadyRep analysis
+============================================================
+
+Files analysed: 2   participants: 1   skipped: 0
+Reps found: 8   valid (SNR >= 3): 8
+
+By set type (snr = median of per-set median SNR):
+      files  reps  valid       snr
+kind                              
+rep       2     8      8  4.753238
+
+Measurement noise
+  pooled rep-to-rep MDF SD, heavy sets (detrended): 4.85 Hz (dof 4)
+  pooled rep-to-rep MDF SD, light sets (detrended): nan Hz (dof 0)
+  pooled SD of 1 s temperature blocks before the set (detrended): 0.025 °C (blocks are autocorrelated, so the temperature MDC is optimistic)
+  MDC95 for cold->warm MDF change: median 13.9% (range 13.9-13.9%). A single person's change below this cannot be told apart from noise.
+
+Participant inclusion (participants with data: 1)
+  MDF cold vs warm (primary): n = 1 of 1
+  MDF sensitivity (SNR>=2): n = 1 of 1
+  Skin dT at warm set: n = 1 of 1
+
+Paired cold vs warm heavy sets (participants with both sets valid)
+  Hodges-Lehmann estimate with exact Wilcoxon CI; Holm correction on secondary outcomes
+                                                         outcome                   column unit  n  n_increase  n_decrease  median  hodges_lehmann  ci_low  ci_high  ci_coverage  wilcoxon_p  holm_p_secondary
+                               MDF % change (primary: whole rep)                  mdf_pct    %  1           1           0    2.03            2.03     NaN      NaN          NaN         NaN               NaN
+             MDF % change, sensitivity: SNR>=2, noise-subtracted      mdf_pct_sensitivity    %  1           1           0    2.67            2.67     NaN      NaN          NaN         NaN               NaN
+                MDF % change, sensitivity: 500 ms lifting window             mdf_pct_lift    %  1           1           0    4.23            4.23     NaN      NaN          NaN         NaN               NaN
+              MDF % change, sensitivity: high-activation samples          mdf_pct_highact    %  1           1           0    5.62            5.62     NaN      NaN          NaN         NaN               NaN
+                                                    MNF % change                  mnf_pct    %  1           0           1   -4.93           -4.93     NaN      NaN          NaN         NaN               NaN
+                                           RMS % change (effort)                  rms_pct    %  1           1           0    46.9            46.9     NaN      NaN          NaN         NaN               NaN
+                                       Inter-rep interval change        interval_change_s    s  1           0           1   -1.36           -1.36     NaN      NaN          NaN         NaN               NaN
+                                              Noise RMS % change                noise_pct    %  1           0           1   -12.2           -12.2     NaN      NaN          NaN         NaN               NaN
+                                             Skin dT at warm set           delta_t_warm_c    C  1           1           0   0.128           0.128     NaN      NaN          NaN         NaN               NaN
+           Skin dT at warm set, sensitivity: idle baselines only delta_t_warm_idle_only_c    C  1           1           0   0.128           0.128     NaN      NaN          NaN         NaN               NaN
+Light-set MDF % change, last wu vs wu_1 (H1 as written; low SNR)            light_mdf_pct    %  0           0           0     NaN             NaN     NaN      NaN          NaN         NaN               NaN
+
+Mixed models (valid heavy-set reps, cold vs warm)
+Fewer than 3 participants with valid cold and warm reps; mixed models skipped.
+
+
+Readiness rule (MDF >= max(10%, MDC) and dT >= max(1.5 °C, MDC)): met in 0 of 1 participants at some set.
+Possible probe settling (most of the rise by the first set after cold): 0 participants.
+
+Threshold sweep (exploratory; n ready at the warm set):
+mdf_threshold_pct  0.0   2.5   5.0   7.5   10.0  12.5  15.0  17.5  20.0
+temp_threshold_c                                                       
+0.00                  1     0     0     0     0     0     0     0     0
+0.25                  0     0     0     0     0     0     0     0     0
+0.50                  0     0     0     0     0     0     0     0     0
+0.75                  0     0     0     0     0     0     0     0     0
+1.00                  0     0     0     0     0     0     0     0     0
+1.25                  0     0     0     0     0     0     0     0     0
+1.50                  0     0     0     0     0     0     0     0     0
+1.75                  0     0     0     0     0     0     0     0     0
+2.00                  0     0     0     0     0     0     0     0     0
+
+Skipped files:
+
+Notes
+  * Rep speed values are EMG-timing proxies (burst timing), not bar velocity.
+  * Sampling times are reconstructed as sample_count/1000 by tools/emg_temp.py; any error in the true rate scales every MDF value.
+  * Absolute temperatures assume a 3.3 V supply and default ADC calibration; only changes are interpreted.
+  * Many warm-up (light) reps fail the SNR gate, so H1's wu_k vs wu_1 comparison is reported but not relied on.
+  * Primary MDF is computed over the whole rep. MDF moves by a median 29 Hz across one rep, so a single 500 ms window depends heavily on where it is placed; the lifting-window and high-activation results are listed above as sensitivity analyses.
+  * Isolated spikes (> 8 x local robust SD) are zeroed before spectra; reps with >= 5 spike samples or any ADC-rail sample are excluded.
+  * A pre-set temperature taken from the first seconds of the set (early_set) differs from an idle one by a median +0.02 °C; the idle-only sensitivity row shows its effect.
+
+Constants
+  FS_HZ = 1000
+  EMG_BAND_HZ = (20.0, 450.0)
+  BANDPASS_ORDER = 4
+  MAINS_HZ = (60.0, 120.0, 180.0)
+  MAINS_PEAK_RATIO = 5.0
+  NOTCH_Q = 30.0
+  CLIP_LOW_MV = 10
+  CLIP_HIGH_MV = 2930
+  SPIKE_Z = 8.0
+  SPIKE_LOCAL_S = 0.2
+  SPIKE_PAD = 2
+  SPIKE_MAX_SAMPLES = 5
+  RMS_WINDOW_S = 0.1
+  MAD_TO_SD = 1.4826
+  ENV_BOUNDARY_LP_HZ = 5.0
+  ENV_COUNT_LP_HZ = 1.0
+  IDLE_SEARCH_S = 5.0
+  IDLE_ENV_FACTOR = 1.5
+  IDLE_MIN_RUN_S = 0.5
+  IDLE_MIN_TOTAL_S = 1.0
+  REP_MIN_SPACING_S = 1.5
+  REP_CANDIDATE_MIN_HEIGHT = 1.5
+  REP_CANDIDATE_MIN_PROMINENCE = 0.3
+  REP_MIN_RELATIVE_PROMINENCE = 0.25
+  REP_KEEP_FRACTION_OF_A = 0.4
+  EDGE_BURST_GAP_S = 2.0
+  EDGE_BURST_FRACTION = 0.75
+  NOT_SEPARATED_VALLEY = 2.0
+  BOUNDARY_NOISE_SD = 3.0
+  REP_MIN_DURATION_S = 0.4
+  QUIET_DWELL_S = 0.1
+  ANCHOR_HALF_WIDTH = 400
+  LIFT_SUBPEAK_FRACTION = 0.5
+  HIGH_ACTIVATION_FRACTION = 0.5
+  MDF_WINDOW_S = 0.5
+  WELCH_NPERSEG = 250
+  WELCH_NOVERLAP = 125
+  MULTITAPER_NW = 3.0
+  MULTITAPER_K = 5
+  FIRMWARE_FFT_SIZE = 1024
+  SNR_GATE = 3.0
+  SNR_GATE_SENSITIVITY = 2.0
+  MIN_VALID_REPS_PER_SET = 2
+  THERM_DROPOUT_MV = 500
+  TEMP_BLOCK_OUTLIER_C = 1.0
+  TEMP_MIN_VALID_BLOCKS = 3
+  TEMP_PRE_MIN_BLOCKS = 2
+  TEMP_BLOCK_S = 1.0
+  TEMP_BLOCK_MIN_FRACTION = 0.5
+  TEMP_BLOCK_TRIM = 0.1
+  TEMP_FILE_MIN_VALID = 0.8
+  TEMP_SKIN_RANGE_C = (28.0, 38.0)
+  EARLY_DIP_WINDOW_S = 30.0
+  PRE_TEMP_FALLBACK_S = 10.0
+  SUPPLY_MV = 3300.0
+  SERIES_OHMS = 10000.0
+  THERM_R25_OHMS = 10000.0
+  THERM_BETA = 3950.0
+  MDF_RISE_THRESHOLD_PCT = 10.0
+  TEMP_RISE_THRESHOLD_C = 1.5
+  SETTLING_MIN_RISE_C = 0.3
+  SETTLING_FIRST_STEP_FRACTION = 0.6
+  SWEEP_MDF_PCT = [ 0.   2.5  5.   7.5 10.  12.5 15.  17.5 20. ]
+  SWEEP_TEMP_C = [0.   0.25 0.5  0.75 1.   1.25 1.5  1.75 2.  ]
+  ALPHA = 0.05

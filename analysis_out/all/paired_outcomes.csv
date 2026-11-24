@@ -1,0 +1,12 @@
+outcome,column,unit,n,n_increase,n_decrease,median,hodges_lehmann,ci_low,ci_high,ci_coverage,wilcoxon_p,holm_p_secondary
+MDF % change (primary: whole rep),mdf_pct,%,13,9,4,1.84081,2.47942,0.266345,4.08889,0.952148,0.0214844,
+"MDF % change, sensitivity: SNR>=2, noise-subtracted",mdf_pct_sensitivity,%,15,11,4,0.693174,1.31748,-2.07549,3.30176,0.952087,0.25238,1
+"MDF % change, sensitivity: 500 ms lifting window",mdf_pct_lift,%,13,6,7,-0.303074,1.39329,-3.17457,5.68661,0.952148,0.541748,1
+"MDF % change, sensitivity: high-activation samples",mdf_pct_highact,%,13,9,4,2.05855,1.69573,-0.748953,4.43946,0.952148,0.216309,1
+MNF % change,mnf_pct,%,13,7,6,0.858101,1.09265,-3.70512,8.00512,0.952148,0.635498,1
+RMS % change (effort),rms_pct,%,13,7,6,0.299167,5.11273,-8.57703,26.3516,0.952148,0.541748,1
+Inter-rep interval change,interval_change_s,s,16,4,12,-0.1395,-0.188125,-0.726,0.0505,0.955688,0.0743829,0.595063
+Noise RMS % change,noise_pct,%,16,8,8,2.12617,10.1186,-15.5698,32.5791,0.955688,0.433197,1
+Skin dT at warm set,delta_t_warm_c,C,14,14,0,0.988304,0.986162,0.675019,1.20816,0.950562,0.00012207,0.0012207
+"Skin dT at warm set, sensitivity: idle baselines only",delta_t_warm_idle_only_c,C,12,12,0,0.988304,0.998283,0.714744,1.33666,0.95752,0.000488281,0.00439453
+"Light-set MDF % change, last wu vs wu_1 (H1 as written; low SNR)",light_mdf_pct,%,12,8,4,2.44304,2.43582,-0.679389,5.52864,0.95752,0.109863,0.769043

@@ -1,0 +1,170 @@
+ReadyRep analysis
+============================================================
+
+Files analysed: 82   participants: 16   skipped: 3
+Reps found: 605   valid (SNR >= 3): 417
+
+By set type (snr = median of per-set median SNR):
+      files  reps  valid       snr
+kind                              
+rep      36   161    142  5.236582
+wu       46   444    275  3.230951
+
+Measurement noise
+  pooled rep-to-rep MDF SD, heavy sets (detrended): 3.53 Hz (dof 75)
+  pooled rep-to-rep MDF SD, light sets (detrended): 3.87 Hz (dof 207)
+  pooled SD of 1 s temperature blocks before the set (detrended): 0.033 °C (blocks are autocorrelated, so the temperature MDC is optimistic)
+  MDC95 for cold->warm MDF change: median 9.3% (range 7.8-12.8%). A single person's change below this cannot be told apart from noise.
+
+Participant inclusion (participants with data: 16)
+  MDF cold vs warm (primary): n = 13 of 16
+      - carolyn: rep_1: 1/2 usable reps (low_snrx1)
+      - emilie: rep_1: 1/5 usable reps (low_snrx2;clippedx2)
+      - rae: rep_2: 1/5 usable reps (clippedx3;artifactx1)
+  MDF sensitivity (SNR>=2): n = 15 of 16
+      - rae: fewer than 2 reps pass even the looser gate
+  Skin dT at warm set: n = 14 of 16
+      - adam: rep_1 temperature: therm_dropout(90%), temp_unusable(1_valid_blocks)
+      - pam: rep_2 temperature: therm_dropout(93%), temp_unusable(2_valid_blocks)
+  Light-set MDF (H1 as written): n = 12 of 16
+      - carolyn: wu_1: 0/9 usable reps (low_snrx9)
+      - justin: wu_1: 1/10 usable reps (low_snrx9); wu_3: 1/10 usable reps (low_snrx9)
+      - leo: wu_1: 0/5 usable reps (low_snrx5); wu_3: 0/6 usable reps (low_snrx6)
+      - matias: wu_1: 0/3 usable reps (low_snrx3); wu_3: 0/10 usable reps (low_snrx10)
+
+Paired cold vs warm heavy sets (participants with both sets valid)
+  Hodges-Lehmann estimate with exact Wilcoxon CI; Holm correction on secondary outcomes
+                                                         outcome                   column unit  n  n_increase  n_decrease  median  hodges_lehmann  ci_low  ci_high  ci_coverage  wilcoxon_p  holm_p_secondary
+                               MDF % change (primary: whole rep)                  mdf_pct    % 13           9           4    1.84            2.48   0.266     4.09        0.952      0.0215               NaN
+             MDF % change, sensitivity: SNR>=2, noise-subtracted      mdf_pct_sensitivity    % 15          11           4   0.693            1.32   -2.08      3.3        0.952       0.252                 1
+                MDF % change, sensitivity: 500 ms lifting window             mdf_pct_lift    % 13           6           7  -0.303            1.39   -3.17     5.69        0.952       0.542                 1
+              MDF % change, sensitivity: high-activation samples          mdf_pct_highact    % 13           9           4    2.06             1.7  -0.749     4.44        0.952       0.216                 1
+                                                    MNF % change                  mnf_pct    % 13           7           6   0.858            1.09   -3.71     8.01        0.952       0.635                 1
+                                           RMS % change (effort)                  rms_pct    % 13           7           6   0.299            5.11   -8.58     26.4        0.952       0.542                 1
+                                       Inter-rep interval change        interval_change_s    s 16           4          12  -0.139          -0.188  -0.726   0.0505        0.956      0.0744             0.595
+                                              Noise RMS % change                noise_pct    % 16           8           8    2.13            10.1   -15.6     32.6        0.956       0.433                 1
+                                             Skin dT at warm set           delta_t_warm_c    C 14          14           0   0.988           0.986   0.675     1.21        0.951    0.000122           0.00122
+           Skin dT at warm set, sensitivity: idle baselines only delta_t_warm_idle_only_c    C 12          12           0   0.988           0.998   0.715     1.34        0.958    0.000488           0.00439
+Light-set MDF % change, last wu vs wu_1 (H1 as written; low SNR)            light_mdf_pct    % 12           8           4    2.44            2.44  -0.679     5.53        0.958        0.11             0.769
+
+Mixed models (valid heavy-set reps, cold vs warm)
+Primary: log_mdf ~ C(condition, Treatment('cold')) * rep_index  (n reps=116, participants=13)
+  warm vs cold at first rep: +2.4% (95% CI -1.7 to +6.8%), Wald p=0.258
+                                                        Coef. Std.Err.        z  P>|z|  [0.025  0.975]
+    Intercept                                           4.148    0.040  102.764  0.000   4.069   4.227
+    C(condition, Treatment('cold'))[T.warm]             0.024    0.021    1.132  0.258  -0.018   0.066
+    rep_index                                          -0.023    0.006   -3.564  0.000  -0.035  -0.010
+    C(condition, Treatment('cold'))[T.warm]:rep_index   0.001    0.010    0.140  0.889  -0.018   0.020
+    Group Var                                           0.018    0.120                                
+
+Confound check: log_mdf ~ C(condition, Treatment('cold')) * rep_index + interval_s + rms_norm + noise_rms_mv  (n reps=116, participants=13)
+  warm vs cold at first rep: +2.2% (95% CI -2.2 to +6.8%), Wald p=0.333
+                                                        Coef. Std.Err.       z  P>|z|  [0.025  0.975]
+    Intercept                                           4.209    0.069  61.279  0.000   4.074   4.343
+    C(condition, Treatment('cold'))[T.warm]             0.022    0.022   0.968  0.333  -0.022   0.066
+    rep_index                                          -0.024    0.007  -3.705  0.000  -0.037  -0.011
+    C(condition, Treatment('cold'))[T.warm]:rep_index   0.003    0.010   0.307  0.759  -0.016   0.022
+    interval_s                                         -0.010    0.010  -1.069  0.285  -0.029   0.009
+    rms_norm                                           -0.024    0.028  -0.856  0.392  -0.080   0.031
+    noise_rms_mv                                       -0.000    0.002  -0.006  0.995  -0.004   0.004
+    Group Var                                           0.019    0.127                               
+
+Wald p-values with this few participants are optimistic; read the CIs and the paired Wilcoxon results first.
+
+
+Readiness rule (MDF >= max(10%, MDC) and dT >= max(1.5 °C, MDC)): met in 0 of 16 participants at some set.
+Possible probe settling (most of the rise by the first set after cold): 4 participants.
+
+Threshold sweep (exploratory; n ready at the warm set):
+mdf_threshold_pct  0.0   2.5   5.0   7.5   10.0  12.5  15.0  17.5  20.0
+temp_threshold_c                                                       
+0.00                  8     4     3     1     0     0     0     0     0
+0.25                  7     4     3     1     0     0     0     0     0
+0.50                  7     4     3     1     0     0     0     0     0
+0.75                  6     3     2     0     0     0     0     0     0
+1.00                  4     2     2     0     0     0     0     0     0
+1.25                  3     1     1     0     0     0     0     0     0
+1.50                  0     0     0     0     0     0     0     0     0
+1.75                  0     0     0     0     0     0     0     0     0
+2.00                  0     0     0     0     0     0     0     0     0
+
+Skipped files:
+  carolyn_wu_2_BAD_CONNECTION2026-11-17_18-17-51.csv: excluded by default (tag 'BAD_CONNECTION'); add an include override to use it
+  kaitlyn_rep_1_more_weight_2026-11-15_19-41-51.csv: excluded by default (tag 'more_weight'); add an include override to use it
+  miki_rep_2_too much.csv: excluded by default (tag 'too much'); add an include override to use it
+
+Notes
+  * Rep speed values are EMG-timing proxies (burst timing), not bar velocity.
+  * Sampling times are reconstructed as sample_count/1000 by tools/emg_temp.py; any error in the true rate scales every MDF value.
+  * Absolute temperatures assume a 3.3 V supply and default ADC calibration; only changes are interpreted.
+  * Many warm-up (light) reps fail the SNR gate, so H1's wu_k vs wu_1 comparison is reported but not relied on.
+  * Primary MDF is computed over the whole rep. MDF moves by a median 29 Hz across one rep, so a single 500 ms window depends heavily on where it is placed; the lifting-window and high-activation results are listed above as sensitivity analyses.
+  * Isolated spikes (> 8 x local robust SD) are zeroed before spectra; reps with >= 5 spike samples or any ADC-rail sample are excluded.
+  * A pre-set temperature taken from the first seconds of the set (early_set) differs from an idle one by a median +0.02 °C; the idle-only sensitivity row shows its effect.
+
+Constants
+  FS_HZ = 1000
+  EMG_BAND_HZ = (20.0, 450.0)
+  BANDPASS_ORDER = 4
+  MAINS_HZ = (60.0, 120.0, 180.0)
+  MAINS_PEAK_RATIO = 5.0
+  NOTCH_Q = 30.0
+  CLIP_LOW_MV = 10
+  CLIP_HIGH_MV = 2930
+  SPIKE_Z = 8.0
+  SPIKE_LOCAL_S = 0.2
+  SPIKE_PAD = 2
+  SPIKE_MAX_SAMPLES = 5
+  RMS_WINDOW_S = 0.1
+  MAD_TO_SD = 1.4826
+  ENV_BOUNDARY_LP_HZ = 5.0
+  ENV_COUNT_LP_HZ = 1.0
+  IDLE_SEARCH_S = 5.0
+  IDLE_ENV_FACTOR = 1.5
+  IDLE_MIN_RUN_S = 0.5
+  IDLE_MIN_TOTAL_S = 1.0
+  REP_MIN_SPACING_S = 1.5
+  REP_CANDIDATE_MIN_HEIGHT = 1.5
+  REP_CANDIDATE_MIN_PROMINENCE = 0.3
+  REP_MIN_RELATIVE_PROMINENCE = 0.25
+  REP_KEEP_FRACTION_OF_A = 0.4
+  EDGE_BURST_GAP_S = 2.0
+  EDGE_BURST_FRACTION = 0.75
+  NOT_SEPARATED_VALLEY = 2.0
+  BOUNDARY_NOISE_SD = 3.0
+  REP_MIN_DURATION_S = 0.4
+  QUIET_DWELL_S = 0.1
+  ANCHOR_HALF_WIDTH = 400
+  LIFT_SUBPEAK_FRACTION = 0.5
+  HIGH_ACTIVATION_FRACTION = 0.5
+  MDF_WINDOW_S = 0.5
+  WELCH_NPERSEG = 250
+  WELCH_NOVERLAP = 125
+  MULTITAPER_NW = 3.0
+  MULTITAPER_K = 5
+  FIRMWARE_FFT_SIZE = 1024
+  SNR_GATE = 3.0
+  SNR_GATE_SENSITIVITY = 2.0
+  MIN_VALID_REPS_PER_SET = 2
+  THERM_DROPOUT_MV = 500
+  TEMP_BLOCK_OUTLIER_C = 1.0
+  TEMP_MIN_VALID_BLOCKS = 3
+  TEMP_PRE_MIN_BLOCKS = 2
+  TEMP_BLOCK_S = 1.0
+  TEMP_BLOCK_MIN_FRACTION = 0.5
+  TEMP_BLOCK_TRIM = 0.1
+  TEMP_FILE_MIN_VALID = 0.8
+  TEMP_SKIN_RANGE_C = (28.0, 38.0)
+  EARLY_DIP_WINDOW_S = 30.0
+  PRE_TEMP_FALLBACK_S = 10.0
+  SUPPLY_MV = 3300.0
+  SERIES_OHMS = 10000.0
+  THERM_R25_OHMS = 10000.0
+  THERM_BETA = 3950.0
+  MDF_RISE_THRESHOLD_PCT = 10.0
+  TEMP_RISE_THRESHOLD_C = 1.5
+  SETTLING_MIN_RISE_C = 0.3
+  SETTLING_FIRST_STEP_FRACTION = 0.6
+  SWEEP_MDF_PCT = [ 0.   2.5  5.   7.5 10.  12.5 15.  17.5 20. ]
+  SWEEP_TEMP_C = [0.   0.25 0.5  0.75 1.   1.25 1.5  1.75 2.  ]
+  ALPHA = 0.05
